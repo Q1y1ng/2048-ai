@@ -255,6 +255,7 @@ struct Cfg {
     int samples = 4;       // spawn cells sampled per TD target
     float scale = 1000.0f; // reward scaling: learn V in units of score/scale
     float alphaFinal = 0.0f; // >0: linearly decay alpha to this value over the run
+    float probCut = 1e-3f; // search: prune spawn branches below this cumulative probability
     std::string pat = "4x16";
     std::string save;
     std::string load;
@@ -399,9 +400,9 @@ static void worker(int tid) {
 //   g_searchDepth  > 0  -> expand that many extra move/spawn pairs
 static int g_searchDepth = 0;
 
-static float searchMax(board_t b, int depth, std::mt19937_64& rng, int samples);
+static float searchMax(board_t b, int depth, double prob, std::mt19937_64& rng, int samples);
 
-static float searchChance(board_t a, int depth, std::mt19937_64& rng, int samples) {
+static float searchChance(board_t a, int depth, double prob, std::mt19937_64& rng, int samples) {
     int cells[16];
     int n = 0;
     uint64_t m = ~spread_bits(a) & OCC_MASK;
@@ -418,17 +419,19 @@ static float searchChance(board_t a, int depth, std::mt19937_64& rng, int sample
         int off = (int)(rng() % (uint64_t)n);
         for (int k = 0; k < samples; k++) picks[use++] = cells[(off + k * n / samples) % n];
     }
+    const double p2 = prob * 0.9 / (double)use;
+    const double p4 = prob * 0.1 / (double)use;
     float sum = 0.0f;
     for (int k = 0; k < use; k++) {
         const int sh = 4 * picks[k];
-        sum += 0.9f * searchMax(a | (1ULL << sh), depth, rng, samples) +
-               0.1f * searchMax(a | (2ULL << sh), depth, rng, samples);
+        sum += 0.9f * searchMax(a | (1ULL << sh), depth, p2, rng, samples) +
+               0.1f * searchMax(a | (2ULL << sh), depth, p4, rng, samples);
     }
     return sum / (float)use;
 }
 
-static float searchMax(board_t b, int depth, std::mt19937_64& rng, int samples) {
-    if (depth < 0) {
+static float searchMax(board_t b, int depth, double prob, std::mt19937_64& rng, int samples) {
+    if (depth < 0 || prob < g_cfg.probCut) {
         float v = best_after_value(b);
         return v < -1e29f ? 0.0f : v;
     }
@@ -437,7 +440,7 @@ static float searchMax(board_t b, int depth, std::mt19937_64& rng, int samples) 
         int g = 0;
         board_t a = do_move(b, d, &g);
         if (a == b) continue;
-        float v = (float)g / g_cfg.scale + searchChance(a, depth - 1, rng, samples);
+        float v = (float)g / g_cfg.scale + searchChance(a, depth - 1, prob, rng, samples);
         if (v > best) best = v;
     }
     return best < -1e29f ? 0.0f : best;
@@ -456,7 +459,7 @@ static int choose_move_net(board_t b, std::mt19937_64& rng) {
         int g = 0;
         board_t a = do_move(b, d, &g);
         if (a == b) continue;
-        float v = (float)g / g_cfg.scale + searchChance(a, g_searchDepth - 1, rng, g_cfg.samples);
+        float v = (float)g / g_cfg.scale + searchChance(a, g_searchDepth - 1, 1.0, rng, g_cfg.samples);
         if (v > best) {
             best = v;
             bd = d;
@@ -662,6 +665,7 @@ int main(int argc, char** argv) {
         else if (a == "--save-every") g_cfg.saveEvery = std::stoll(next());
         else if (a == "--scale") g_cfg.scale = std::stof(next());
         else if (a == "--search-depth") g_searchDepth = std::stoi(next());
+        else if (a == "--prob-cut") g_cfg.probCut = std::stof(next());
         else if (a == "--alpha-final") g_cfg.alphaFinal = std::stof(next());
         else if (a == "--eval") g_cfg.evalGames = std::stoi(next());
         else if (a == "--eval-only") g_cfg.evalOnly = true;
