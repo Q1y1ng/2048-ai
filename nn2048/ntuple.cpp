@@ -239,6 +239,8 @@ struct Cfg {
     float alpha = 0.001f;
     float eps = 0.01f;
     int samples = 4;       // spawn cells sampled per TD target
+    float scale = 1000.0f; // reward scaling: learn V in units of score/scale
+    float alphaFinal = 0.0f; // >0: linearly decay alpha to this value over the run
     std::string pat = "4x16";
     std::string save;
     std::string load;
@@ -252,6 +254,7 @@ static Cfg g_cfg;
 static std::atomic<long long> g_games{0};
 static std::atomic<long long> g_steps{0};
 static std::atomic<bool> g_stop{false};
+static thread_local float tlAlpha = 0.02f;  // current learning rate for this worker
 
 static void disable_power_throttling() {
 #ifdef _WIN32
@@ -303,9 +306,16 @@ static void worker(int tid) {
     std::uniform_real_distribution<float> uni(0.0f, 1.0f);
     while (!g_stop.load(std::memory_order_relaxed)) {
         // claim one game from the global budget (balanced, no remainder loss)
-        if (g_games.fetch_add(1, std::memory_order_relaxed) >= g_cfg.games) {
+        const long long claimed = g_games.fetch_add(1, std::memory_order_relaxed);
+        if (claimed >= g_cfg.games) {
             g_games.fetch_sub(1, std::memory_order_relaxed);
             break;
+        }
+        tlAlpha = g_cfg.alpha;
+        if (g_cfg.alphaFinal > 0.0f && g_cfg.games > 0) {
+            double frac = (double)claimed / (double)g_cfg.games;
+            if (frac > 1.0) frac = 1.0;
+            tlAlpha = (float)(g_cfg.alpha + ((double)g_cfg.alphaFinal - g_cfg.alpha) * frac);
         }
         // initial two tiles
         board_t b = 0;
@@ -348,7 +358,10 @@ static void worker(int tid) {
             const int gain = gains[pick];
             g_steps.fetch_add(1, std::memory_order_relaxed);
 
-            // spawn -> TD target -> update
+            // TD target: expectimax over spawns *from the afterstate* a.
+            // (Spawning first and sampling again would back up two spawns ahead.)
+            float target = spawn_expectation(a, rng, g_cfg.samples);
+            // advance the real game: one spawn on the afterstate
             board_t s2 = a;
             uint64_t e = ~spread_bits(s2) & OCC_MASK;
             int ne = __builtin_popcountll(e);
@@ -358,8 +371,8 @@ static void worker(int tid) {
                 int cell = (int)(__builtin_ctzll(e) >> 2);
                 s2 |= (uni(rng) < 0.1f) ? (2ULL << (4 * cell)) : (1ULL << (4 * cell));
             }
-            float target = spawn_expectation(s2, rng, g_cfg.samples);
-            td_update(a, (float)gain + target - chosen_val, g_cfg.alpha);
+            const float reward = (float)gain / g_cfg.scale;
+            td_update(a, reward + target - chosen_val, tlAlpha);
             b = s2;
         }
     }
@@ -561,6 +574,8 @@ int main(int argc, char** argv) {
         else if (a == "--save") g_cfg.save = next();
         else if (a == "--load") g_cfg.load = next();
         else if (a == "--save-every") g_cfg.saveEvery = std::stoll(next());
+        else if (a == "--scale") g_cfg.scale = std::stof(next());
+        else if (a == "--alpha-final") g_cfg.alphaFinal = std::stof(next());
         else if (a == "--eval") g_cfg.evalGames = std::stoi(next());
         else if (a == "--eval-only") g_cfg.evalOnly = true;
         else if (a == "--seed") g_cfg.seed = std::stoi(next());
