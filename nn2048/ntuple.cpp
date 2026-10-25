@@ -169,12 +169,26 @@ static const int P6x4[4][6] = {
     {0, 1, 4, 5, 8, 9},   {1, 2, 5, 6, 9, 10},
 };
 
+
+// 6x8: eight 2x3 blocks (4 horizontal + 4 vertical) — bigger receptive field
+static const int P6x8[8][6] = {
+    {0, 1, 2, 4, 5, 6},    {1, 2, 3, 5, 6, 7},
+    {8, 9, 10, 12, 13, 14}, {9, 10, 11, 13, 14, 15},
+    {0, 1, 4, 5, 8, 9},    {2, 3, 6, 7, 10, 11},
+    {4, 5, 8, 9, 12, 13},  {6, 7, 10, 11, 14, 15},
+};
 static void setup_patterns(const std::string& name) {
     if (name == "4x8") {
         NPAT = 8;
         for (int p = 0; p < 8; p++) {
             PAT_LEN[p] = 4;
             for (int i = 0; i < 4; i++) PAT_CELLS[p][i] = P4x8[p][i];
+        }
+    } else if (name == "6x8") {
+        NPAT = 8;
+        for (int p = 0; p < 8; p++) {
+            PAT_LEN[p] = 6;
+            for (int i = 0; i < 6; i++) PAT_CELLS[p][i] = P6x8[p][i];
         }
     } else if (name == "6x4") {
         NPAT = 4;
