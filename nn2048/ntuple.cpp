@@ -177,7 +177,15 @@ static const int P6x8[8][6] = {
     {0, 1, 4, 5, 8, 9},    {2, 3, 6, 7, 10, 11},
     {4, 5, 8, 9, 12, 13},  {6, 7, 10, 11, 14, 15},
 };
-static void setup_patterns(const std::string& name) {
+// 6x12: every 2x3 / 3x2 block (6 horizontal + 6 vertical)
+static const int P6x12[12][6] = {
+    {0, 1, 2, 4, 5, 6},    {1, 2, 3, 5, 6, 7},
+    {4, 5, 6, 8, 9, 10},   {5, 6, 7, 9, 10, 11},
+    {8, 9, 10, 12, 13, 14}, {9, 10, 11, 13, 14, 15},
+    {0, 1, 4, 5, 8, 9},    {2, 3, 6, 7, 10, 11},
+    {1, 2, 5, 6, 9, 10},   {5, 6, 9, 10, 13, 14},
+    {4, 5, 8, 9, 12, 13},  {6, 7, 10, 11, 14, 15},
+};static void setup_patterns(const std::string& name) {
     if (name == "4x8") {
         NPAT = 8;
         for (int p = 0; p < 8; p++) {
@@ -189,6 +197,12 @@ static void setup_patterns(const std::string& name) {
         for (int p = 0; p < 8; p++) {
             PAT_LEN[p] = 6;
             for (int i = 0; i < 6; i++) PAT_CELLS[p][i] = P6x8[p][i];
+        }
+    } else if (name == "6x12") {
+        NPAT = 12;
+        for (int p = 0; p < 12; p++) {
+            PAT_LEN[p] = 6;
+            for (int i = 0; i < 6; i++) PAT_CELLS[p][i] = P6x12[p][i];
         }
     } else if (name == "6x4") {
         NPAT = 4;
