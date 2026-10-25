@@ -1,0 +1,15 @@
+# 运行产物（可由命令重新生成）
+runs/
+logs/
+__pycache__/
+*.pyc
+
+# 编译产物
+*.exe
+*.o
+*.obj
+
+# 编辑器 / 临时
+.vscode/
+.idea/
+.scratch/
