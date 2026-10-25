@@ -43,3 +43,9 @@ clang++ -O3 -std=c++17 -D_CRT_SECURE_NO_WARNINGS -o ntuple.exe ntuple.cpp
 手工评估 + bitboard 期望最大仍是最高分方案（均分 **231.9k**、16384 率 39%、最高 387.4k，见 `RESULTS.md`）。
 学习型最好到 **169.0k**（6×12 + 深度 2），约为手工方案的 73%，且在该网络规模下已饱和；
 再往上需要 16–20 个 6-tuple 的 5 小时以上长训，或多阶段 TD。
+
+## 许可
+
+本页列出的权重文件（`ntuple-6x12-10M.bin` / `ntuple-6x8-11M.bin` / `ntuple-4x16-4M.bin`）与
+[本仓库](../../) 的代码同许可：**Apache License 2.0**（见仓库根目录 `LICENSE` 与 `NOTICE`）。
+它们托管在 HEAOZIE 的 Release 页面，但版权与许可以其来源仓库（本仓库）的 Apache-2.0 为准。
