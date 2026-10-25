@@ -13,3 +13,7 @@ __pycache__/
 .vscode/
 .idea/
 .scratch/
+
+# 训练产物
+models/
+*.bin
