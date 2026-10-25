@@ -1,0 +1,18 @@
+2048 AI
+Copyright 2026 Q1y1ng
+
+This product includes software developed as part of the 2048 AI project
+(https://github.com/Q1y1ng/2048-ai), licensed under the Apache License 2.0.
+
+Third-party credits (no source code is included from these projects):
+
+* The game rules of 2048 originate from Gabriele Cirulli's "2048"
+  (https://github.com/gabrielecirulli/2048, MIT). No code from that project
+  is redistributed here; the board engine is an independent implementation.
+* The heuristic evaluation terms (sum^3.5 / monotonicity^4 / merge runs /
+  empty cells) follow the published approach of nneonneo/2048-ai
+  (https://github.com/nneonneo/2048-ai, MIT). The implementation is independent.
+
+The trained n-tuple weights distributed in the GitHub Release
+(https://github.com/Q1y1ng/HEAOZIE/releases/tag/ntuple-weights-v1)
+are covered by the same Apache License 2.0.

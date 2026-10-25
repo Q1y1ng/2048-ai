@@ -98,3 +98,12 @@ demos/                    演示产物（视频 / 回放 / 封面）
 - 评估口径（`sum^3.5` / `mono^4` / 合并段 / 空格，权重 270-47-11-700）参考了
   [nneonneo/2048-ai](https://github.com/nneonneo/2048-ai) 的公开实现思路，代码为独立实现。
 - 游戏规则源自 [2048](https://github.com/gabrielecirulli/2048)（Gabriele Cirulli, MIT）。
+
+## 许可
+
+本仓库（代码、文档、demos/ 演示产物）与 Release 里的 n-tuple 权重均为 **Apache License 2.0**。
+
+- [LICENSE](LICENSE)：Apache-2.0 全文
+- [NOTICE](NOTICE)：版权声明与第三方归属（2048 游戏规则源自 [gabrielecirulli/2048](https://github.com/gabrielecirulli/2048)（MIT），
+  评估口径参考 [nneonneo/2048-ai](https://github.com/nneonneo/2048-ai)（MIT）；两者均未复制源码）
+- 转载请保留 LICENSE 与 NOTICE；修改过的文件需标注改动（Apache-2.0 §4）
