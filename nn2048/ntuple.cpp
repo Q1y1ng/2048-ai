@@ -378,6 +378,79 @@ static void worker(int tid) {
     }
 }
 
+
+// ------------------------------------------------------------- search -----
+// Expectimax on top of the learned afterstate value.
+//   g_searchDepth == 0  -> pure net policy (one ply: max over moves)
+//   g_searchDepth  > 0  -> expand that many extra move/spawn pairs
+static int g_searchDepth = 0;
+
+static float searchMax(board_t b, int depth, std::mt19937_64& rng, int samples);
+
+static float searchChance(board_t a, int depth, std::mt19937_64& rng, int samples) {
+    int cells[16];
+    int n = 0;
+    uint64_t m = ~spread_bits(a) & OCC_MASK;
+    while (m) {
+        cells[n++] = (int)(__builtin_ctzll(m) >> 2);
+        m &= m - 1;
+    }
+    if (!n) return 0.0f;
+    int picks[16];
+    int use = 0;
+    if (n <= samples) {
+        for (int i = 0; i < n; i++) picks[use++] = cells[i];
+    } else {
+        int off = (int)(rng() % (uint64_t)n);
+        for (int k = 0; k < samples; k++) picks[use++] = cells[(off + k * n / samples) % n];
+    }
+    float sum = 0.0f;
+    for (int k = 0; k < use; k++) {
+        const int sh = 4 * picks[k];
+        sum += 0.9f * searchMax(a | (1ULL << sh), depth, rng, samples) +
+               0.1f * searchMax(a | (2ULL << sh), depth, rng, samples);
+    }
+    return sum / (float)use;
+}
+
+static float searchMax(board_t b, int depth, std::mt19937_64& rng, int samples) {
+    if (depth < 0) {
+        float v = best_after_value(b);
+        return v < -1e29f ? 0.0f : v;
+    }
+    float best = -1e30f;
+    for (int d = 0; d < 4; d++) {
+        int g = 0;
+        board_t a = do_move(b, d, &g);
+        if (a == b) continue;
+        float v = (float)g / g_cfg.scale + searchChance(a, depth - 1, rng, samples);
+        if (v > best) best = v;
+    }
+    return best < -1e29f ? 0.0f : best;
+}
+
+// direction chosen by the policy (0..3), or -1 when no move is legal
+static int choose_move_net(board_t b, std::mt19937_64& rng) {
+    int bd = -1;
+    if (g_searchDepth <= 0) {
+        int g = 0;
+        float v = best_after_value(b, &g, &bd);
+        return v < -1e29f ? -1 : bd;
+    }
+    float best = -1e30f;
+    for (int d = 0; d < 4; d++) {
+        int g = 0;
+        board_t a = do_move(b, d, &g);
+        if (a == b) continue;
+        float v = (float)g / g_cfg.scale + searchChance(a, g_searchDepth - 1, rng, g_cfg.samples);
+        if (v > best) {
+            best = v;
+            bd = d;
+        }
+    }
+    return bd;
+}
+
 // ------------------------------------------------------------- evaluation -
 struct EvalResult {
     long long games = 0;
@@ -405,9 +478,8 @@ static EvalResult evaluate(int games, int seed) {
         }
         int score = 0, moves = 0, mx = 0;
         while (true) {
-            int g = 0, d = -1;
-            float v = best_after_value(b, &g, &d);
-            if (v < -1e29f) break;
+            int g = 0, d = choose_move_net(b, rng);
+            if (d < 0) break;
             board_t a = do_move(b, d, &g);
             score += g;
             moves++;
@@ -575,6 +647,7 @@ int main(int argc, char** argv) {
         else if (a == "--load") g_cfg.load = next();
         else if (a == "--save-every") g_cfg.saveEvery = std::stoll(next());
         else if (a == "--scale") g_cfg.scale = std::stof(next());
+        else if (a == "--search-depth") g_searchDepth = std::stoi(next());
         else if (a == "--alpha-final") g_cfg.alphaFinal = std::stof(next());
         else if (a == "--eval") g_cfg.evalGames = std::stoi(next());
         else if (a == "--eval-only") g_cfg.evalOnly = true;
